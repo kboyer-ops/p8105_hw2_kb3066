@@ -1,0 +1,11 @@
+---
+title: "p8105_hw2_kb3066"
+author: "Kaila Boyer"
+date: "10/3/2021"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
