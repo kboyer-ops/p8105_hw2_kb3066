@@ -9,3 +9,104 @@ output: github_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r include = FALSE}
+library(tidyverse)
+library(readxl)
+```
+
+## Problem 1
+
+Cleaning Mr.Trash Wheel sheet
+```{r}
+trash_wheel <- read_excel("Trash-Wheel-Collection-Totals-8-6-19.xlsx", sheet = 1, range = "A2:N408") %>% janitor::clean_names()
+
+trash_wheel <- trash_wheel %>% filter(!is.na(dumpster)) 
+
+trash_wheel$sports_balls <- round(trash_wheel,sports_balls)
+
+trash_wheel %>% group_by(year) %>% summarise(med = median(sports_balls))
+```
+
+Precipitation sheets 
+```{r}
+precip_2018 <- read_excel("Trash-Wheel-Collection-Totals-8-6-19.xlsx", sheet = 5, 
+                          range = "A2:B14") %>% janitor::clean_names()
+
+precip_2019 <- read_excel("Trash-Wheel-Collection-Totals-8-6-19.xlsx", sheet = 4, 
+                          range = "A2:B14") %>% janitor::clean_names()
+
+precip_2019 <- precip_2019[ 1:6, ]
+```
+
+
+Adding year column to precipitation data and adding month name 
+```{r}
+precip_2018 <- precip_2018 %>% mutate(year = "2018", 
+                                      month = month.name)
+
+precip_2019 <- precip_2019 %>% mutate(year = "2019", 
+                                      month = month.name[1:6])
+```
+
+merging precipitation data 
+```{r}
+precip_merged <- bind_rows(precip_2018, precip_2019)
+
+precip_merged %>% group_by(year) %>% summarise(totals = sum(total)) %>%  knitr::kable()
+```
+
+
+NEED TO ADD INLINE R TEXT FOR PROBLEM 1 
+
+create a president variable taking values gop and dem, and remove prez_dem and prez_gop; and remove the day
+variable.
+ indicator of whether the president was republican on the associated date (1 = yes, 0 = no)
+ ndicator of whether the president was democratic on the associated date (1 = yes, 0 = no)
+ 
+ mutate(sex = recode(sex, `1` = "male", `2` = "female"))
+
+double check that the data is correct (there were issues with read_csv)
+
+do not use $ for anything 
+remove prez_dem and prez_gop; and remove the day variable.
+
+## Problem 2 
+```{r}
+pols_month <- read_csv("fivethirtyeight_datasets/pols-month.csv") %>% janitor::clean_names()
+pols_month <- pols_month %>% 
+                  separate(mon, into = c("year", "month", "day")) %>% 
+                  mutate(month = rep(month.name, length.out = nrow(pols_month)), 
+                         president = if_else(prez_gop == 1, "Republican", "Democrat"))
+
+pols_month <- pols_month %>% select(!contains("prez"), -day) 
+```
+Second, clean the data in snp.csv using a similar process to the above. For consistency across datasets, arrange according to year and month, and organize so that year and month are the leading columns.
+
+
+```{r}
+snp <- read_csv("fivethirtyeight_datasets/snp.csv")
+snp <- snp %>% separate(date, into = c("year", "month", "day")) %>% 
+                  mutate(month = rep(month.name, length.out = nrow(snp)))  %>% 
+                select(-day) 
+```
+Third, tidy the unemployment data so that it can be merged with the previous datasets. This process will involve switching from “wide” to “long” format; ensuring that key variables have the same name; and ensuring that key variables take the same values.
+
+Join the datasets by merging snp into pols, and merging unemployment into the result.
+
+Write a short paragraph about these datasets. Explain briefly what each dataset contained, and describe the resulting dataset (e.g. give the dimension, range of years, and names of key variables).
+
+Note: we could have used a date variable as a key instead of creating year and month keys; doing so would help with some kinds of plotting, and be a more accurate representation of the data. Date formats are tricky, though. For more information check out the lubridate package in the tidyverse.
+
+
+```{r}
+unemployment <- read_csv("fivethirtyeight_datasets/unemployment.csv") %>% janitor::clean_names()
+ 
+unemployment <- unemployment %>% pivot_longer(-year, names_to = "month", 
+                                             values_to = "percent UE")
+```
+
+merging datasets 
+```{r}
+pols_snp <- pols_month %>% left_join(snp, by = )
+```
+
