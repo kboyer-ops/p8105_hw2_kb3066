@@ -15,98 +15,138 @@ library(readxl)
 ```
 
 ## Problem 1
-
 Cleaning Mr.Trash Wheel sheet
 ```{r}
-trash_wheel <- read_excel("Trash-Wheel-Collection-Totals-8-6-19.xlsx", sheet = 1, range = "A2:N408") %>% janitor::clean_names()
+trash_wheel <- read_excel("Trash-Wheel-Collection-Totals-7-2020-2.xlsx", sheet = 1, range = "A2:N535") %>% janitor::clean_names()
 
-trash_wheel <- trash_wheel %>% filter(!is.na(dumpster)) 
+trash_wheel <- trash_wheel %>% filter(!is.na(dumpster) & !is.na(year)) %>% 
+                               mutate(sports_balls = round(sports_balls), 
+                                      date = lubridate::ymd(date))
 
-trash_wheel$sports_balls <- round(trash_wheel,sports_balls)
-
-trash_wheel %>% group_by(year) %>% summarise(med = median(sports_balls))
+trash_wheel %>% filter(year == 2019) %>% summarise(med_sb = median(sports_balls))
 ```
 
 Precipitation sheets 
 ```{r}
-precip_2018 <- read_excel("Trash-Wheel-Collection-Totals-8-6-19.xlsx", sheet = 5, 
+precip_2018 <- read_excel("Trash-Wheel-Collection-Totals-7-2020-2.xlsx", sheet = 7, 
                           range = "A2:B14") %>% janitor::clean_names()
 
-precip_2019 <- read_excel("Trash-Wheel-Collection-Totals-8-6-19.xlsx", sheet = 4, 
+precip_2019 <- read_excel("Trash-Wheel-Collection-Totals-7-2020-2.xlsx", sheet = 6, 
                           range = "A2:B14") %>% janitor::clean_names()
-
-precip_2019 <- precip_2019[ 1:6, ]
-```
-
-
-Adding year column to precipitation data and adding month name 
-```{r}
 precip_2018 <- precip_2018 %>% mutate(year = "2018", 
                                       month = month.name)
 
 precip_2019 <- precip_2019 %>% mutate(year = "2019", 
-                                      month = month.name[1:6])
+                                      month = month.name)
 ```
-
-merging precipitation data 
+Merging precipitation data 
 ```{r}
 precip_merged <- bind_rows(precip_2018, precip_2019)
 
-precip_merged %>% group_by(year) %>% summarise(totals = sum(total)) %>%  knitr::kable()
+precip_merged %>% group_by(year) %>% summarise(totals = sum(total)) %>% knitr::kable()
 ```
 
+`In the Mr. Trashwheel dataset there are 453 observations and 14 columns. It includes variables on the various categories of litter and the amount collected. This includes data on cigarette butts, grocery bags, plastic bottles and sports balls. The number of homes powered through the collection of litter is another variable in this dataframe. The median number of sports balls collected by a dumpster in 2019 was 9.`
+`The precipitation data contains variables for the monthly precipitation totals. The data frames from 2018 and 2019 had 12 observations, one for each month, along with a month and total precipitation variable. The total precipitation in 2018 was 70.33 inches. `
 
-NEED TO ADD INLINE R TEXT FOR PROBLEM 1 
-
-create a president variable taking values gop and dem, and remove prez_dem and prez_gop; and remove the day
-variable.
- indicator of whether the president was republican on the associated date (1 = yes, 0 = no)
- ndicator of whether the president was democratic on the associated date (1 = yes, 0 = no)
- 
- mutate(sex = recode(sex, `1` = "male", `2` = "female"))
-
-double check that the data is correct (there were issues with read_csv)
-
-do not use $ for anything 
-remove prez_dem and prez_gop; and remove the day variable.
 
 ## Problem 2 
+
+pols_month dataframe 
 ```{r}
 pols_month <- read_csv("fivethirtyeight_datasets/pols-month.csv") %>% janitor::clean_names()
 pols_month <- pols_month %>% 
                   separate(mon, into = c("year", "month", "day")) %>% 
                   mutate(month = rep(month.name, length.out = nrow(pols_month)), 
-                         president = if_else(prez_gop == 1, "Republican", "Democrat"))
+                         president = if_else(prez_gop == 1 & prez_dem !=1, "Republican", "Democrat"))
 
 pols_month <- pols_month %>% select(!contains("prez"), -day) 
 ```
-Second, clean the data in snp.csv using a similar process to the above. For consistency across datasets, arrange according to year and month, and organize so that year and month are the leading columns.
 
-
+SNP dataframe
 ```{r}
 snp <- read_csv("fivethirtyeight_datasets/snp.csv")
-snp <- snp %>% separate(date, into = c("year", "month", "day")) %>% 
-                  mutate(month = rep(month.name, length.out = nrow(snp)))  %>% 
+  
+snp <-snp %>% separate(date, into = c("day", "month", "year")) %>% 
+                  mutate(month = rep(month.name, length.out = nrow(snp)), 
+                         year = as.numeric(year))  %>% 
                 select(-day) 
+
+snp <- snp %>% mutate(year = ifelse( year>=50 & year<=99, year+1900, 
+                             ifelse(year>=00 & year<= 15, year+2000, NA)), 
+                      year = as.character(year))
 ```
-Third, tidy the unemployment data so that it can be merged with the previous datasets. This process will involve switching from “wide” to “long” format; ensuring that key variables have the same name; and ensuring that key variables take the same values.
 
-Join the datasets by merging snp into pols, and merging unemployment into the result.
-
-Write a short paragraph about these datasets. Explain briefly what each dataset contained, and describe the resulting dataset (e.g. give the dimension, range of years, and names of key variables).
-
-Note: we could have used a date variable as a key instead of creating year and month keys; doing so would help with some kinds of plotting, and be a more accurate representation of the data. Date formats are tricky, though. For more information check out the lubridate package in the tidyverse.
-
-
+Unemployment dataframe
 ```{r}
 unemployment <- read_csv("fivethirtyeight_datasets/unemployment.csv") %>% janitor::clean_names()
  
 unemployment <- unemployment %>% pivot_longer(-year, names_to = "month", 
-                                             values_to = "percent UE")
+                                             values_to = "percent UE") %>% janitor::clean_names()
+
+
+unemployment <- unemployment %>% mutate(month = rep(month.name, length.out = nrow(unemployment)), 
+                                        year = as.character(year)) 
 ```
 
-merging datasets 
 ```{r}
-pols_snp <- pols_month %>% left_join(snp, by = )
+pols_snp <- pols_month %>% left_join(snp, by = c("year", "month") )
+
+fivethirtyeight_all <- pols_snp %>% left_join(unemployment, by = c("year", "month"))
 ```
+
+`The pols_month datasets contains information on the number of elected officials in each political party for each day, starting in January 1947 until June 2015. This includes the number of Republicans and Democrats in office for President, Congress (Senators and Representatives), and Governors. This dataset has 822 observations and 9 variables.`
+`The snp dataset has information on the closing values of the S&P index on a given date. It has two variables (date and closing value) and it has 787 observations.The time ranges from 1950 to 2015. `
+`The unemployment dataset has information on the percent unemployment for each month. After transforming it to a longer format, it has 816 observations and 3 variables (year, month, and percent). The years range from 1948 to 2015.  `
+`Merging all three datasets result in a larger dataframe with 822 observations and 11 variables. Like with pols_month, the earliest time provided is January 1947 and the latest is June 2015. The earliest date with closing S&P index values and a percent unemployment is 1950.`
+
+## Problem 3 
+
+Baby names data 
+```{r}
+baby_names <- read_csv("Popular_Baby_Names.csv") %>% 
+                          janitor::clean_names() %>% 
+                          distinct() %>% 
+                          mutate(gender = str_to_lower(gender), 
+                                 ethnicity = str_to_lower(ethnicity), 
+                                 year_of_birth = as.character(year_of_birth), 
+                                 childs_first_name = str_to_sentence(childs_first_name)) 
+
+Hmisc::describe(baby_names$ethnicity)
+baby_names <- baby_names %>% mutate(
+                                   ethnicity = if_else(ethnicity == "asian and paci" | ethnicity == "asian and pacific islander", "Asian and Pacific Islander", 
+                                                       if_else(ethnicity == "black non hisp" | ethnicity == "black non hispanic", "Black Non Hispanic", 
+                                                               if_else(ethnicity == "white non hispanic" | ethnicity == "white non hisp", "White Non Hispanic", "Hispanic")))
+)
+```
+Oliva dataframe 
+```{r}
+olivia <- baby_names %>% filter(childs_first_name == "Olivia") %>% 
+  pivot_wider(names_from = year_of_birth, 
+              values_from = c(rank, count)) %>% 
+  mutate(ethnicity = as.factor(ethnicity)) %>% 
+  select(-gender, -starts_with("count"))
+  
+```
+
+```{r}
+ethan <- baby_names %>% filter(gender == "male" & childs_first_name == "Ethan") %>% 
+  pivot_wider(names_from = year_of_birth, 
+              values_from = c(rank, count)) %>% 
+  mutate(ethnicity = as.factor(ethnicity)) %>% 
+  select(-gender, -starts_with("count"))
+```
+
+Finally, for male, white non-hispanic children born in 2016, produce a scatter plot showing the number of children with a name (y axis) against the rank in popularity of that name (x axis).
+
+```{r}
+baby_names %>% filter(gender == "male" & ethnicity == "White Non Hispanic" & year_of_birth == 2016) %>% 
+  ggplot(aes(x = rank, y = count)) + 
+  geom_point() + 
+  labs( 
+    title = "Rank and Count of White Non Hispanic Male Names in 2016"
+      )
+```
+
+
 
